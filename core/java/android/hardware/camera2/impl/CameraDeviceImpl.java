@@ -1548,6 +1548,32 @@ public class CameraDeviceImpl extends CameraDevice
                     }
                 }
                 if (streamId == -1) {
+                    // Fallback: match a deferred stream by configured size.
+                    // Some camera apps (e.g. MTK PriCamera, front camera)
+                    // finalize with an OutputConfiguration whose format or
+                    // generation id differs from the deferred config stored
+                    // at session creation, so the strict equals() above
+                    // rejects it even though it describes the same stream.
+                    // A deferred stream is identified by its configured size;
+                    // only accept the fallback when exactly one deferred
+                    // stream with that size exists, otherwise keep the
+                    // original error below.
+                    int fallbackStreamId = -1;
+                    int fallbackCount = 0;
+                    for (int i = 0; i < mConfiguredOutputs.size(); i++) {
+                        OutputConfiguration stored = mConfiguredOutputs.valueAt(i);
+                        if (stored.isDeferredConfiguration()
+                                && stored.getConfiguredSize().equals(
+                                        config.getConfiguredSize())) {
+                            fallbackStreamId = mConfiguredOutputs.keyAt(i);
+                            fallbackCount++;
+                        }
+                    }
+                    if (fallbackCount == 1) {
+                        streamId = fallbackStreamId;
+                    }
+                }
+                if (streamId == -1) {
                     throw new IllegalArgumentException("Deferred config is not part of this "
                             + "session");
                 }
